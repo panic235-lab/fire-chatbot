@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소방 사업부서의 계약에 관한 AI챗봇</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── 헤더 ── */
+        .header {
+            background: linear-gradient(135deg, #b71c1c, #e53935);
+            color: white;
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+        }
+        .header .logo { font-size: 44px; }
+        .header h1    { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+        .header p     { font-size: 11px; opacity: 0.82; margin-top: 5px; }
+
+        /* ── 본문 ── */
+        .container {
+            flex: 1;
+            max-width: 960px;
+            width: 100%;
+            margin: 32px auto;
+            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #aaa;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding-left: 4px;
+        }
+
+        /* ── 카테고리 카드 ── */
+        .cat-card {
+            background: white;
+            border-radius: 14px;
+            padding: 18px 22px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .cat-card:hover              { border-color: #e53935; background: #fff8f8; }
+        .cat-card.active             { border-color: #e53935; background: #e53935; color: white; }
+        .cat-card .cat-icon          { font-size: 30px; }
+        .cat-card .cat-text h2       { font-size: 16px; font-weight: 700; }
+        .cat-card .cat-text p        { font-size: 12px; color: #999; margin-top: 3px; }
+        .cat-card.active .cat-text p { color: rgba(255,255,255,0.75); }
+        .cat-card .arrow             { margin-left: auto; font-size: 22px; color: #ccc; transition: transform 0.25s; }
+        .cat-card.active .arrow      { color: rgba(255,255,255,0.8); }
+
+        /* ── 가로 확장 영역 (계약 종류 클릭 시) ── */
+        .expand-row {
+            display: none;
+            gap: 16px;
+            align-items: flex-start;
+            animation: fadeIn 0.2s ease;
+        }
+        .expand-row.show { display: flex; }
+
+        /* ── 왼쪽 패널 (40%) ── */
+        .sub-panel {
+            flex: 0 0 40%;
+            background: white;
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            position: relative;
+        }
+
+        /* 뒤로가기 버튼 */
+        .back-btn {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: 1.5px solid #ddd;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-family: inherit;
+            color: #666;
+            cursor: pointer;
+            margin-bottom: 18px;
+            transition: all 0.15s;
+        }
+        .back-btn:hover   { border-color: #e53935; color: #e53935; background: #fff5f5; }
+        .back-btn.show    { display: flex; }
+
+        /* 공사/용역/물품 선택 뷰 */
+        #typeView { display: block; animation: fadeIn 0.2s ease; }
+        .sub-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #bbb;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+        .sub-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .sub-btn {
+            border: 2px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 18px 8px;
+            text-align: center;
+            cursor: pointer;
+            background: #fafafa;
+            transition: all 0.18s;
+            user-select: none;
+        }
+        .sub-btn:hover  { border-color: #e53935; background: #fff5f5; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(229,57,53,0.15); }
+        .sub-btn.active { border-color: #e53935; background: #e53935; color: white; }
+        .sub-btn .sub-icon        { font-size: 28px; margin-bottom: 7px; }
+        .sub-btn .sub-name        { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+        .sub-btn .sub-desc        { font-size: 10.5px; color: #aaa; }
+        .sub-btn.active .sub-desc { color: rgba(255,255,255,0.75); }
+
+        /* 기초금액 입력 뷰 */
+        #amountView { display: none; animation: fadeIn 0.2s ease; }
+        .amount-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .bot-av {
+            width: 32px; height: 32px;
+            background: #e53935;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; color: white; flex-shrink: 0;
+        }
+        .amount-head-title { font-size: 15px; font-weight: 700; color: #222; }
+        .q-text {
+            font-size: 14px;
+            font-weight: 700;
+            color: #333;
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+        .amount-wrap { display: flex; align-items: center; gap: 8px; }
+        .amount-wrap input {
+            flex: 1;
+            padding: 12px 14px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            text-align: right;
+            transition: border-color 0.2s;
+        }
+        .amount-wrap input:focus { border-color: #e53935; }
+        .amount-unit { font-size: 14px; font-weight: 700; color: #555; }
+
+        /* ── 오른쪽: 관련근거 (60%) ── */
+        .ref-panel {
+            flex: 1;
+            background: white;
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        }
+        .ref-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #e53935;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e53935;
+        }
+        .ref-body {
+            font-size: 11.5px;
+            line-height: 1.85;
+            color: #444;
+            max-height: 380px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .ref-body::-webkit-scrollbar       { width: 4px; }
+        .ref-body::-webkit-scrollbar-track { background: #f5f5f5; }
+        .ref-body::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+        .ref-law-name  { font-weight: 700; color: #b71c1c; font-size: 12px; margin-bottom: 2px; }
+        .ref-enacted   { font-size: 10.5px; color: #999; margin-bottom: 12px; }
+        .ref-art       { margin-bottom: 12px; }
+        .ref-art-title { font-weight: 700; color: #222; margin-bottom: 4px; }
+        .ref-art-body  { padding-left: 8px; color: #555; }
+        .ref-art-body .sub { padding-left: 12px; }
+
+        /* ── 금액 임계값 테이블 ── */
+        .th-header {
+            display: flex;
+            font-size: 11px;
+            font-weight: 700;
+            color: #e53935;
+            border-bottom: 2px solid #e53935;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+        }
+        .th-col-amt  { width: 76px; flex-shrink: 0; }
+        .th-col-rule { flex: 1; }
+
+        .th-row {
+            display: flex;
+            gap: 10px;
+            padding: 8px 6px;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            border-left: 3px solid transparent;
+            transition: all 0.15s;
+        }
+        .th-row.active   { background: #fff5f5; border-left-color: #e53935; }
+        .th-row.inactive { opacity: 0.38; }
+
+        .th-amt {
+            width: 76px;
+            flex-shrink: 0;
+            font-weight: 700;
+            font-size: 12px;
+            color: #b71c1c;
+            padding-top: 1px;
+        }
+        .th-row.inactive .th-amt { color: #aaa; }
+        .th-rules { flex: 1; font-size: 11px; line-height: 1.75; color: #555; }
+        .th-rule-title { font-weight: 700; color: #333; margin-bottom: 1px; }
+        .th-row.inactive .th-rule-title { color: #aaa; }
+        .th-rule-item  { padding-left: 8px; color: #666; }
+
+        /* ── 챙겨야 할 목록 패널 ── */
+        .checklist-panel {
+            background: white;
+            border-radius: 14px;
+            padding: 22px 26px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            border-top: 4px solid #e53935;
+            display: none;
+            animation: fadeIn 0.25s ease;
+        }
+        .checklist-panel.show { display: block; }
+        .cl-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 4px;
+        }
+        .cl-amount {
+            font-size: 12px;
+            color: #e53935;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .cl-section { margin-bottom: 16px; }
+        .cl-section-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #e53935;
+            background: #fff5f5;
+            padding: 4px 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+        .cl-item {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 7px 4px;
+            border-bottom: 1px solid #f5f5f5;
+            font-size: 13px;
+        }
+        .cl-item:last-child { border-bottom: none; }
+        .cl-check { color: #e53935; flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+        .cl-text  { flex: 1; color: #333; line-height: 1.6; }
+        .cl-law   { font-size: 11px; color: #999; margin-top: 2px; }
+
+        /* ── 다음 버튼 ── */
+        .next-btn-wrap {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #f0f0f0;
+        }
+        .next-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #b71c1c, #e53935);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 22px;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(229,57,53,0.35);
+            transition: all 0.2s;
+        }
+        .next-btn:hover { transform: translateX(3px); box-shadow: 0 4px 14px rgba(229,57,53,0.45); }
+        .next-btn .arrow-icon { font-size: 18px; }
+
+        /* ── 계약방법 패널 ── */
+        .method-panel {
+            background: white;
+            border-radius: 14px;
+            padding: 22px 26px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            border-top: 4px solid #b71c1c;
+            display: none;
+            animation: fadeIn 0.25s ease;
+        }
+        .method-panel.show { display: block; }
+        .method-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 18px;
+        }
+        .method-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .method-card {
+            border: 2px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 18px 14px;
+            text-align: center;
+            cursor: pointer;
+            background: #fafafa;
+            transition: all 0.18s;
+            user-select: none;
+        }
+        .method-card:hover  { border-color: #e53935; background: #fff5f5; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(229,57,53,0.15); }
+        .method-card.active { border-color: #e53935; background: #e53935; color: white; }
+        .method-icon { font-size: 28px; margin-bottom: 8px; }
+        .method-name { font-size: 14px; font-weight: 700; }
+        .method-card.active .method-name { color: white; }
+        .method-card-wide { grid-column: span 2; }
+        .method-guide-badge {
+            font-size: 10px;
+            font-weight: 700;
+            color: #1565c0;
+            background: #e3f2fd;
+            border-radius: 20px;
+            padding: 2px 10px;
+            margin: 4px 0 2px;
+            letter-spacing: 0.3px;
+        }
+        .method-card.active .method-guide-badge {
+            background: rgba(255,255,255,0.25);
+            color: white;
+        }
+
+        /* ── 제한경쟁입찰 패널 ── */
+        .limited-panel {
+            background: white;
+            border-radius: 14px;
+            padding: 22px 26px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            border-top: 4px solid #1565c0;
+            display: none;
+            animation: fadeIn 0.25s ease;
+        }
+        .limited-panel.show { display: block; }
+        .lm-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e3f2fd;
+        }
+        .lm-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1565c0;
+            flex: 1;
+        }
+        .lm-guide-badge {
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+            background: #1565c0;
+            border-radius: 20px;
+            padding: 4px 12px;
+            letter-spacing: 0.3px;
+        }
+        .lm-body {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+        .lm-content {
+            flex: 1;
+        }
+        .lm-section-title {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #1565c0;
+            margin-bottom: 8px;
+        }
+        .lm-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 4px;
+        }
+        .lm-list li {
+            font-size: 12.5px;
+            color: #444;
+            line-height: 1.75;
+            padding: 3px 0 3px 14px;
+            position: relative;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .lm-list li:last-child { border-bottom: none; }
+        .lm-list li::before { content: '-'; position: absolute; left: 0; color: #888; }
+        .lm-guide-side {
+            flex-shrink: 0;
+            width: 72px;
+            background: #e3f2fd;
+            border-radius: 12px;
+            padding: 16px 8px;
+            text-align: center;
+            border: 2px solid #1565c0;
+        }
+        .lm-guide-icon {
+            font-size: 26px;
+            margin-bottom: 8px;
+        }
+        .lm-guide-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #1565c0;
+            line-height: 1.5;
+        }
+
+        /* ── 지출방법 패널 ── */
+        .payment-panel {
+            background: white;
+            border-radius: 14px;
+            padding: 22px 26px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            border-top: 4px solid #b71c1c;
+            display: none;
+            animation: fadeIn 0.25s ease;
+        }
+        .payment-panel.show { display: block; }
+        .payment-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 18px;
+        }
+        .payment-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .payment-card {
+            border: 2px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 22px 14px;
+            text-align: center;
+            cursor: pointer;
+            background: #fafafa;
+            transition: all 0.18s;
+            user-select: none;
+        }
+        .payment-card:hover  { border-color: #e53935; background: #fff5f5; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(229,57,53,0.15); }
+        .payment-card.active { border-color: #e53935; background: #e53935; color: white; }
+        .payment-icon { font-size: 30px; margin-bottom: 8px; }
+        .payment-name { font-size: 14px; font-weight: 700; }
+        .payment-card.active .payment-name { color: white; }
+
+        /* ── 2인수의 질문 패널 ── */
+        .duo-panel {
+            background: white;
+            border-radius: 14px;
+            padding: 26px 28px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            border-top: 4px solid #b71c1c;
+            display: none;
+            animation: fadeIn 0.25s ease;
+        }
+        .duo-panel.show { display: block; }
+        .duo-question {
+            font-size: 15px; font-weight: 700; color: #222;
+            line-height: 1.7; margin-bottom: 20px;
+        }
+        .duo-question span { color: #e53935; }
+        .duo-yn-wrap { display: flex; gap: 12px; }
+        .duo-yn-btn {
+            flex: 1; padding: 14px;
+            border-radius: 10px; border: 2px solid #e8e8e8;
+            font-size: 15px; font-weight: 700; font-family: inherit;
+            cursor: pointer; background: #fafafa;
+            transition: all 0.18s; text-align: center;
+        }
+        .duo-yn-btn.yes:hover, .duo-yn-btn.yes.active { background: #e53935; border-color: #e53935; color: white; }
+        .duo-yn-btn.no:hover,  .duo-yn-btn.no.active  { background: #424242; border-color: #424242; color: white; }
+        .duo-result {
+            margin-top: 20px; padding: 14px 16px;
+            border-radius: 10px; font-size: 13.5px; font-weight: 600;
+            display: none; animation: fadeIn 0.2s ease;
+        }
+        .duo-result.show { display: block; }
+        .duo-result.no-result {
+            background: #f5f5f5; border-left: 4px solid #757575; color: #444;
+        }
+
+        /* ── 카드지출 상세 패널 ── */
+        .card-detail-panel {
+            background: white;
+            border-radius: 14px;
+            padding: 26px 28px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            border-top: 4px solid #1565c0;
+            display: none;
+            animation: fadeIn 0.25s ease;
+        }
+        .card-detail-panel.show { display: block; }
+
+        .cd-main-title {
+            font-size: 15px; font-weight: 700; color: #1565c0;
+            margin-bottom: 18px; padding-bottom: 10px;
+            border-bottom: 2px solid #e3f0ff;
+        }
+        .cd-sub-title {
+            font-size: 13px; font-weight: 700; color: #222;
+            margin: 18px 0 10px;
+        }
+        .cd-section-head {
+            font-size: 12.5px; font-weight: 700; color: #1565c0;
+            margin: 16px 0 8px; display: flex; align-items: center; gap: 6px;
+        }
+        .cd-section-head::before { content: '❍'; }
+        .cd-list { margin: 0 0 10px 0; padding-left: 0; list-style: none; }
+        .cd-list li {
+            font-size: 12.5px; color: #444; line-height: 1.75;
+            padding: 3px 0 3px 14px; position: relative;
+        }
+        .cd-list li::before { content: '-'; position: absolute; left: 0; color: #888; }
+
+        /* 견적 예시 테이블 */
+        .cd-example-box {
+            background: #f8f9fa; border-radius: 10px;
+            padding: 14px 16px; margin: 10px 0 16px;
+            border: 1px solid #e0e0e0;
+        }
+        .cd-example-label {
+            font-size: 11px; font-weight: 700; color: #888;
+            letter-spacing: 0.5px; margin-bottom: 10px;
+        }
+        .cd-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .cd-table th {
+            background: #1565c0; color: white; padding: 7px 10px;
+            text-align: center; font-weight: 700;
+        }
+        .cd-table td {
+            padding: 7px 10px; border-bottom: 1px solid #eee;
+            text-align: center; color: #444;
+        }
+        .cd-table tr.best td { background: #fff8e1; font-weight: 700; color: #e65100; }
+        .cd-table td:first-child { text-align: left; }
+        .cd-table-note {
+            font-size: 11px; color: #888; margin-top: 8px; font-style: italic;
+        }
+
+        /* 절차 흐름도 */
+        .cd-flow {
+            display: flex; align-items: stretch;
+            gap: 0; margin: 10px 0 16px; flex-wrap: wrap;
+        }
+        .cd-flow-item {
+            flex: 1; min-width: 80px;
+            background: #f0f4ff; border-radius: 8px;
+            padding: 10px 8px; text-align: center;
+            font-size: 11px; color: #333;
+            border: 1px solid #ccd9ff;
+        }
+        .cd-flow-item .flow-step { font-size: 10px; color: #1565c0; font-weight: 700; margin-bottom: 4px; }
+        .cd-flow-item .flow-name { font-weight: 700; font-size: 12px; margin-bottom: 4px; }
+        .cd-flow-item .flow-who  { font-size: 10px; color: #888; }
+        .cd-flow-arrow {
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; color: #1565c0; padding: 0 4px; flex-shrink: 0;
+        }
+
+        /* 주의사항 */
+        .cd-warn-list { margin: 0; padding-left: 0; list-style: none; }
+        .cd-warn-list li {
+            font-size: 12.5px; color: #444; line-height: 1.75;
+            padding: 4px 0 4px 18px; position: relative; border-bottom: 1px solid #f5f5f5;
+        }
+        .cd-warn-list li::before { content: '-'; position: absolute; left: 4px; color: #e53935; font-weight: 700; }
+        .cd-warn-list li:last-child { border-bottom: none; }
+
+        /* Tip 박스 */
+        .cd-tip {
+            background: #fffde7; border-left: 4px solid #f9a825;
+            border-radius: 0 10px 10px 0; padding: 14px 16px;
+            margin-top: 20px;
+        }
+        .cd-tip-title {
+            font-size: 12px; font-weight: 700; color: #f57f17;
+            margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+        }
+        .cd-tip-body { font-size: 12px; color: #555; line-height: 1.8; }
+
+        /* ── 플로팅 버튼 ── */
+        .floating-btns {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 999;
+        }
+        .float-btn {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 11px 18px;
+            border-radius: 50px;
+            border: none;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .float-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.22); }
+        .float-btn.reset { background: #e53935; color: white; }
+        .float-btn.prev  { background: white; color: #444; border: 1.5px solid #ddd; }
+        .float-btn.prev:hover { border-color: #e53935; color: #e53935; }
+
+        /* ── 나라장터 슬라이드 ── */
+        .nj-slides-wrap {
+            overflow: hidden;
+        }
+        .nj-slides-inner {
+            display: flex;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .nj-slide {
+            min-width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* 소방품목 + 다음버튼 행 */
+        .nj-fire-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-top: 18px;
+        }
+        .nj-fire-row .nj-fire-note {
+            flex: 1;
+            margin-top: 0;
+        }
+        .nj-next-btn {
+            flex-shrink: 0;
+            padding: 10px 18px;
+            background: linear-gradient(135deg, #2e7d32, #43a047);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(46,125,50,0.3);
+            transition: all 0.2s;
+            align-self: center;
+        }
+        .nj-next-btn:hover { transform: translateX(3px); box-shadow: 0 4px 14px rgba(46,125,50,0.4); }
+
+        /* 슬라이드2 헤더 */
+        .nj-proc-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e8f5e9;
+        }
+        .nj-back-btn {
+            padding: 7px 14px;
+            background: none;
+            border: 1.5px solid #ccc;
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: inherit;
+            color: #666;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s;
+        }
+        .nj-back-btn:hover { border-color: #2e7d32; color: #2e7d32; }
+        .nj-proc-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #2e7d32;
+        }
+
+        /* 진행순서 스텝 */
+        .nj-proc-steps {
+            margin-bottom: 24px;
+        }
+        .nj-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 9px 14px;
+            background: #f1f8e9;
+            border-radius: 8px;
+            border-left: 4px solid #558b2f;
+        }
+        .nj-step-num {
+            width: 24px; height: 24px;
+            background: #2e7d32;
+            color: white;
+            border-radius: 50%;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .nj-step-text {
+            font-size: 12.5px;
+            color: #333;
+            line-height: 1.5;
+        }
+        .nj-step-arrow {
+            text-align: center;
+            color: #81c784;
+            font-size: 16px;
+            padding: 2px 0;
+            margin-left: 19px;
+        }
+
+        /* 이미지 */
+        .nj-proc-img-wrap {
+            margin-top: 4px;
+        }
+        .nj-proc-img-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #555;
+            margin-bottom: 10px;
+        }
+        .nj-proc-img {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            display: block;
+        }
+
+        /* ── 나라장터 소기업·소상공인 패널 ── */
+        .narajangteo-panel {
+            background: white;
+            border-radius: 14px;
+            padding: 26px 28px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            border-top: 4px solid #2e7d32;
+            display: none;
+            animation: fadeIn 0.25s ease;
+        }
+        .narajangteo-panel.show { display: block; }
+        .nj-top-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 6px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e8f5e9;
+        }
+        .nj-main-title {
+            flex: 1;
+            font-size: 15px; font-weight: 700; color: #2e7d32;
+        }
+        .nj-yt-badge {
+            flex-shrink: 0;
+            width: 90px;
+            background: #ffebee;
+            border: 2px solid #e53935;
+            border-radius: 12px;
+            padding: 12px 6px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.18s;
+            text-decoration: none;
+            display: block;
+        }
+        .nj-yt-badge:hover { background: #e53935; }
+        .nj-yt-badge:hover .nj-yt-icon,
+        .nj-yt-badge:hover .nj-yt-label { color: white; }
+        .nj-yt-icon {
+            font-size: 22px;
+            color: #e53935;
+            margin-bottom: 6px;
+        }
+        .nj-yt-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #b71c1c;
+            line-height: 1.5;
+        }
+        .nj-section-head {
+            font-size: 12.5px; font-weight: 700; color: #2e7d32;
+            margin: 16px 0 8px; display: flex; align-items: center; gap: 6px;
+        }
+        .nj-section-head::before { content: '❍'; }
+        .nj-law-box {
+            background: #f1f8e9; border-radius: 10px;
+            padding: 14px 16px; margin-bottom: 14px;
+            border-left: 4px solid #558b2f;
+        }
+        .nj-law-title {
+            font-size: 13px; font-weight: 700; color: #33691e;
+            margin-bottom: 8px;
+        }
+        .nj-list { margin: 0; padding-left: 0; list-style: none; }
+        .nj-list li {
+            font-size: 12.5px; color: #444; line-height: 1.75;
+            padding: 3px 0 3px 14px; position: relative;
+        }
+        .nj-list li::before { content: '-'; position: absolute; left: 0; color: #888; }
+        .nj-fire-note {
+            margin-top: 18px; padding: 14px 16px;
+            background: #fff8e1; border-left: 4px solid #f9a825;
+            border-radius: 0 10px 10px 0; font-size: 13px; color: #555; line-height: 1.8;
+        }
+        .nj-fire-note-title {
+            font-size: 12px; font-weight: 700; color: #e65100;
+            margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+        }
+
+        /* ── 계약의 종류 카드 초기 강조 ── */
+        #catCard {
+            border: 2px solid #e53935;
+        }
+
+        /* ── 사용 안내 화살표 ── */
+        .usage-guide {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 6px 0;
+            animation: fadeIn 0.4s ease;
+        }
+        .usage-arrow {
+            font-size: 28px;
+            color: #e53935;
+            animation: bounceUp 1s infinite;
+            line-height: 1;
+        }
+        .usage-text {
+            font-size: 13px;
+            font-weight: 700;
+            color: #e53935;
+        }
+        @keyframes bounceUp {
+            0%, 100% { transform: translateY(0); }
+            50%       { transform: translateY(-5px); }
+        }
+
+        /* ── 유의사항 ── */
+        .notice-box {
+            margin-top: 8px;
+            padding: 18px 24px;
+            background: #fafafa;
+            border-radius: 12px;
+            border: 1px dashed #ccc;
+            color: #777;
+        }
+        .notice-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #aaa;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        .notice-box p {
+            font-size: 12px;
+            line-height: 1.9;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── 업무추진절차 목록 ── */
+        .cd-proc-list {
+            margin: 0 0 14px 0;
+            padding-left: 20px;
+            list-style: decimal;
+        }
+        .cd-proc-list li {
+            font-size: 13px;
+            color: #333;
+            line-height: 1.8;
+            padding: 4px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .cd-proc-list li:last-child { border-bottom: none; }
+        .cd-caution {
+            margin-top: 4px;
+            padding: 5px 10px;
+            background: #fff8e1;
+            border-left: 3px solid #f9a825;
+            border-radius: 0 6px 6px 0;
+            font-size: 12px;
+            color: #b45309;
+            font-weight: 600;
+        }
+
+        /* ── Quick menu (고정 왼쪽 사이드바) ── */
+        .quick-sidebar {
+            position: fixed;
+            left: 16px;
+            top: 110px;
+            width: 255px;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .quick-sidebar .section-label { padding-left: 2px; }
+
+        .quick-item {
+            background: white;
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.09);
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .quick-item:hover     { border-color: #1565c0; background: #f0f4ff; }
+        .quick-item .qi-icon  { font-size: 22px; flex-shrink: 0; }
+        .quick-item .qi-text  { flex: 1; }
+        .quick-item .qi-text strong { font-size: 12px; font-weight: 700; color: #222; display: block; line-height: 1.4; }
+        .quick-item .qi-text span   { font-size: 10.5px; color: #888; margin-top: 2px; display: block; }
+        .quick-item .qi-arrow { font-size: 18px; color: #ccc; flex-shrink: 0; }
+
+        @media (max-width: 1200px) {
+            .quick-sidebar { display: none; }
+        }
+
+        @media (max-width: 640px) {
+            .expand-row { flex-direction: column; }
+            .sub-panel  { flex: unset; width: 100%; }
+            .sub-grid   { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="header">
+    <div class="logo">🚒</div>
+    <div>
+        <h1>소방 사업부서의 계약에 관한 AI챗봇</h1>
+        <p>근거법령: 지방자치단체를 당사자로 하는 계약에 관한 법률(지방계약법) · 동법 시행령 · 시행규칙</p>
+    </div>
+</div>
+
+<!-- Quick menu 사이드바 -->
+<div class="quick-sidebar">
+    <div class="section-label">Quick menu</div>
+    <div class="quick-item" onclick="openQuickCardConsumable()">
+        <div class="qi-icon">💳</div>
+        <div class="qi-text">
+            <strong>카드집행 소모품</strong>
+            <span>부서운영·사무관리비</span>
+        </div>
+        <div class="qi-arrow">›</div>
+    </div>
+</div>
+
+<!-- 본문 -->
+<div class="container">
+
+    <div class="section-label">카테고리 선택</div>
+
+    <!-- 계약의 종류 카드 -->
+    <div class="cat-card" id="catCard" onclick="toggleCat()">
+        <div class="cat-icon">📋</div>
+        <div class="cat-text">
+            <h2>계약의 종류</h2>
+            <p>공사 · 용역 · 물품</p>
+        </div>
+        <div class="arrow" id="catArrow">›</div>
+    </div>
+
+    <!-- 사용 안내 -->
+    <div class="usage-guide" id="usageGuide">
+        <div class="usage-arrow">↑</div>
+        <div class="usage-text">위 계약의 종류부터 클릭하시면 됩니다</div>
+    </div>
+
+    <!-- 확장 영역 -->
+    <div class="expand-row" id="expandRow">
+
+        <!-- 왼쪽 패널 -->
+        <div class="sub-panel">
+
+            <!-- 뒤로가기 버튼 -->
+            <button class="back-btn" id="backBtn" onclick="goBack()">◀ 뒤로가기</button>
+
+            <!-- 뷰1: 공사/용역/물품 선택 -->
+            <div id="typeView">
+                <div class="sub-label">세부 유형을 선택하세요</div>
+                <div class="sub-grid">
+
+                    <div class="sub-btn" id="btn-construction" onclick="selectType('construction')">
+                        <div class="sub-icon">🏗️</div>
+                        <div class="sub-name">공사</div>
+                        <div class="sub-desc">시설, 수리공사 등</div>
+                    </div>
+
+                    <div class="sub-btn" id="btn-service" onclick="selectType('service')">
+                        <div class="sub-icon">🔧</div>
+                        <div class="sub-name">용역</div>
+                        <div class="sub-desc">점검 · 유지관리</div>
+                    </div>
+
+                    <div class="sub-btn" id="btn-goods" onclick="selectType('goods')">
+                        <div class="sub-icon">📦</div>
+                        <div class="sub-name">물품</div>
+                        <div class="sub-desc">자산취득 · 소모품</div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 뷰2: 기초금액 입력 -->
+            <div id="amountView">
+                <div class="amount-head">
+                    <div class="bot-av">🤖</div>
+                    <div class="amount-head-title" id="amountTitle"></div>
+                </div>
+                <div class="q-text">계약하시고자 하는 기초금액을 입력하시고<br>엔터를 눌러주세요</div>
+                <div id="lawGuideMsg" style="display:none; font-size:12px; color:#1565c0; background:#e3f2fd; border-left:3px solid #1565c0; padding:7px 12px; border-radius:6px; margin-bottom:14px;">📋 오른쪽 패널에서 해당되는 법령을 참고하세요.</div>
+                <div class="amount-wrap">
+                    <input type="number" id="amountInput" placeholder="금액 입력" min="0" oninput="updateRefByAmount(); document.getElementById('lawGuideMsg').style.display = this.value !== '' ? 'block' : 'none';" onkeydown="if(event.key==='Enter') renderChecklist()" />
+                    <span class="amount-unit">원</span>
+                </div>
+            </div>
+
+        </div><!-- /sub-panel -->
+
+        <!-- 오른쪽: 관련근거 -->
+        <div class="ref-panel">
+            <div class="ref-title">관련근거</div>
+            <div class="ref-body" id="refBody"></div>
+        </div>
+
+    </div><!-- /expand-row -->
+
+    <!-- 챙겨야 할 목록 -->
+    <div class="checklist-panel" id="checklistPanel">
+        <div class="cl-title">📋 챙겨야 할 목록</div>
+        <div class="cl-amount" id="clAmount"></div>
+        <div id="clContent"></div>
+        <div class="next-btn-wrap">
+            <button class="next-btn" onclick="showMethodPanel()">
+                다음 <span class="arrow-icon">→</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 계약방법 패널 -->
+    <div class="method-panel" id="methodPanel">
+        <div class="method-title">계약방법을 말해주세요</div>
+        <div class="method-grid">
+            <div class="method-card" id="method-solo" onclick="selectMethod('solo')">
+                <div class="method-icon">👤</div>
+                <div class="method-name">1인 수의</div>
+            </div>
+            <div class="method-card" id="method-narajangteo" onclick="selectMethod('narajangteo')">
+                <div class="method-icon">🛒</div>
+                <div class="method-name">조달청 나라장터 구매</div>
+            </div>
+            <div class="method-card method-card-wide" id="method-limited" onclick="selectMethod('limited')">
+                <div class="method-icon">📝</div>
+                <div class="method-name">제한경쟁입찰 (2인수의 포함)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 카드지출 상세 패널 -->
+    <div class="card-detail-panel" id="cardDetailPanel">
+        <div class="cd-main-title">■ 신용카드사용 구매</div>
+
+        <div class="cd-sub-title">1. 오프라인 카드구매</div>
+
+        <div class="cd-section-head">업무 추진절차</div>
+        <ol class="cd-proc-list">
+            <li>이호조에 사전품의 후 온나라 연계결재</li>
+            <li>해당매장 또는 식당에서 결재(식당은 식사 후)</li>
+            <li>구매한 목록이 나오는 영수증에 구매자 계급·성명을 기입하고
+                <div class="cd-caution">※ 부서운영비 지출 시 "주류" 등 지출 불가 품목인지 필히 검토</div>
+            </li>
+            <li>영수증을 복사하여 복사한 A4용지에 붙여서 이호조의 <strong>"사용승인내역등록"</strong>에 첨부</li>
+            <li>(아래에서부터) <strong>온나라 연계공문 → 영수증 → 지출결의서</strong> 순서로 회계담당자에게 제출</li>
+        </ol>
+
+        <div class="cd-section-head">신용카드 물품구매 절차</div>
+        <div class="cd-flow">
+            <div class="cd-flow-item">
+                <div class="flow-step">STEP 1</div>
+                <div class="flow-name">오프라인 물품 검색</div>
+                <div class="flow-who">부서 담당자</div>
+            </div>
+            <div class="cd-flow-arrow">⇨</div>
+            <div class="cd-flow-item">
+                <div class="flow-step">STEP 2</div>
+                <div class="flow-name">예산집행 품의</div>
+                <div class="flow-who">부서 담당자</div>
+            </div>
+            <div class="cd-flow-arrow">⇨</div>
+            <div class="cd-flow-item">
+                <div class="flow-step">STEP 3</div>
+                <div class="flow-name">물품구매<br><span style="font-size:10px;color:#5c7cff">(신용카드 결재)</span></div>
+                <div class="flow-who">부서 담당자</div>
+            </div>
+            <div class="cd-flow-arrow">⇨</div>
+            <div class="cd-flow-item">
+                <div class="flow-step">STEP 4</div>
+                <div class="flow-name">납품·검사·수령</div>
+                <div class="flow-who">부서 담당자</div>
+            </div>
+            <div class="cd-flow-arrow">⇨</div>
+            <div class="cd-flow-item">
+                <div class="flow-step">STEP 5</div>
+                <div class="flow-name">카드대금 지급</div>
+                <div class="flow-who">회계 담당자</div>
+            </div>
+        </div>
+
+        <div class="cd-section-head">신용카드 지출 시 주의사항</div>
+        <ul class="cd-warn-list">
+            <li>계약담당 PC의 공동인증서 로그인 하여 포인트 적립·사용</li>
+            <li>개인 아이디로 로그인하여 포인트 적립 금지</li>
+            <li>카드 구매 시 구매내역 확인 철저 (물품구매, 부서운영비 집행 등)</li>
+        </ul>
+
+        <div class="cd-sub-title" style="margin-top:24px;">2. 카드사용 전자상거래 물품구매</div>
+
+        <div class="cd-section-head">인터넷 물품구매</div>
+        <ul class="cd-list">
+            <li>인터넷 가격 목록을 캡쳐해서라도 비교견적 행위의 증빙 필수</li>
+            <li>최초 품의 시 "금50,000원정도" 표기하여 금액 오기 방지</li>
+        </ul>
+
+        <div class="cd-example-box">
+            <div class="cd-example-label">📋 인터넷 물품 견적 예시</div>
+            <table class="cd-table">
+                <thead>
+                    <tr><th>업체명</th><th>단가</th><th>배송비</th><th>합계</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>○○쇼핑</td><td>48,000원</td><td>3,000원</td><td>51,000원</td></tr>
+                    <tr class="best"><td>△△몰 ★선택</td><td>45,000원</td><td>무료</td><td>45,000원</td></tr>
+                    <tr><td>□□마켓</td><td>46,500원</td><td>2,500원</td><td>49,000원</td></tr>
+                </tbody>
+            </table>
+            <div class="cd-table-note">※ 위 내역 중 가장 저렴한 대상을 선택하여 구매 (배송비 확인 철저)</div>
+        </div>
+
+        <div class="cd-section-head">신용카드 물품구매 절차</div>
+        <div class="cd-flow">
+            <div class="cd-flow-item">
+                <div class="flow-step">STEP 1</div>
+                <div class="flow-name">온라인 검색</div>
+                <div class="flow-who">부서 담당자</div>
+            </div>
+            <div class="cd-flow-arrow">⇨</div>
+            <div class="cd-flow-item">
+                <div class="flow-step">STEP 2</div>
+                <div class="flow-name">예산집행 품의</div>
+                <div class="flow-who">부서 담당자</div>
+            </div>
+            <div class="cd-flow-arrow">⇨</div>
+            <div class="cd-flow-item">
+                <div class="flow-step">STEP 3</div>
+                <div class="flow-name">물품구매 요청<br><span style="font-size:10px;color:#5c7cff">(계약담당자 PC)</span></div>
+                <div class="flow-who">계약 담당자</div>
+            </div>
+            <div class="cd-flow-arrow">⇨</div>
+            <div class="cd-flow-item">
+                <div class="flow-step">STEP 4</div>
+                <div class="flow-name">납품·검사·수령<br><span style="font-size:10px;color:#5c7cff">(신용카드 결재)</span></div>
+                <div class="flow-who">부서 담당자</div>
+            </div>
+            <div class="cd-flow-arrow">⇨</div>
+            <div class="cd-flow-item">
+                <div class="flow-step">STEP 5</div>
+                <div class="flow-name">카드대금 지급</div>
+                <div class="flow-who">회계 담당자</div>
+            </div>
+        </div>
+
+        <div class="cd-section-head">신용카드 지출 시 주의사항</div>
+        <ul class="cd-warn-list">
+            <li>계약담당 PC의 공동인증서 로그인 하여 포인트 적립·사용</li>
+            <li>개인 아이디로 로그인하여 포인트 적립 금지</li>
+            <li>카드 구매 시 구매내역 확인 철저 (물품구매, 부서운영비 집행 등)</li>
+        </ul>
+
+        <div style="margin-top:16px; padding:12px 14px; background:#f5f5f5; border-radius:8px; border-left:3px solid #888;">
+            <div style="font-size:12px; font-weight:700; color:#444; margin-bottom:8px;">● 공통사항</div>
+            <ul class="cd-warn-list" style="margin:0;">
+                <li>영수증에 물품을 구매한 사람의 계급·성명 작성 필수</li>
+                <li>영수증은 사본을 복사하여 원본 옆에 부착하여 원본 보관 원칙</li>
+                <li>카드 구매 시 구매내역 확인 철저 (물품구매, 부서운영비 집행 등)</li>
+            </ul>
+        </div>
+
+        <div style="margin-top:14px; padding:12px 14px; background:#f0f4ff; border-radius:8px; border-left:3px solid #1565c0;">
+            <div style="font-size:12px; font-weight:700; color:#1565c0; margin-bottom:8px;">* 신용카드 지출 가능 대상 <span style="font-weight:400; color:#888;">[지방자치단체구매카드 발급 및 사용기준 별표4 참고]</span></div>
+            <ul class="cd-warn-list" style="margin:0;">
+                <li>일반물품, 공과금, 행사운영비, 임차료, 연구비, 자산취득비 등 가능</li>
+                <li>시설비 및 부대비의 경우 수수료·감정료·신청료 위주 사용</li>
+                <li>카드사용 가능 용역비 : <strong>"소규모 용역 경비"</strong></li>
+                <li>부서운영비, 사무관리비</li>
+            </ul>
+        </div>
+
+        <div class="cd-tip">
+            <div class="cd-tip-title">💡 Tip</div>
+            <div class="cd-tip-body">
+                1. 카드 구매에서 물품을 받고 검사·수령 완료 후 대금지급(카드결재)가 원칙이나,
+                부득이하게 물품구매요청 과정에서 카드번호를 입력해야 구매할 수 있는 경우에는
+                <strong>예외적으로 물품 납품 전에 카드번호를 입력하여 물품구매를 요청할 수 있음</strong>
+                <br><br>
+                2. 카드 1회 계약금액은 최고 2,000만원이지만 카드의 한도가 정해져 있고,
+                이용한도에 이용하면 지출 전까지 이용이 불가하니
+                <strong>사업부서마다 한도금액 및 일정금액 이상 사용 시 회계 담당자에게 문의 바랍니다.</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2인수의 질문 패널 -->
+    <div class="duo-panel" id="duoPanel">
+        <div class="duo-question">
+            <span>5,000만원 미만</span>의 여성·장애인 기업과의 계약인가요?
+        </div>
+        <div class="duo-yn-wrap">
+            <button class="duo-yn-btn yes" id="duoYes" onclick="selectDuoAnswer('yes')">✔ 예</button>
+            <button class="duo-yn-btn no"  id="duoNo"  onclick="selectDuoAnswer('no')">✘ 아니오</button>
+        </div>
+        <div class="duo-result no-result" id="duoResult">
+            📋 조달청 나라장터 제한경쟁입찰과 같습니다.
+        </div>
+    </div>
+
+    <!-- 나라장터 소기업·소상공인 패널 -->
+    <div class="narajangteo-panel" id="narajangteoPanel">
+        <div class="nj-top-row">
+            <div class="nj-main-title">🛒 조달청 나라장터 구매 — 소기업·소상공인 의무구매</div>
+            <a class="nj-yt-badge" href="https://www.youtube.com/@조달청_나라장터" target="_blank" rel="noopener">
+                <div class="nj-yt-icon">▶</div>
+                <div class="nj-yt-label">조달청<br>가이드<br>(유튜브채널)</div>
+            </a>
+        </div>
+
+        <!-- 슬라이드 래퍼 -->
+        <div class="nj-slides-wrap">
+            <div class="nj-slides-inner" id="njSlidesInner">
+
+                <!-- 슬라이드 1: 근거법령 -->
+                <div class="nj-slide">
+                    <div class="nj-section-head">근거 법령</div>
+
+                    <div class="nj-law-box">
+                        <div class="nj-law-title">① 중소기업제품 구매촉진 및 판로지원에 관한 법률 제9조 (직접생산확인)</div>
+                        <ul class="nj-list">
+                            <li>제9조(중소기업자간 경쟁제품 직접생산 확인) — 중소기업자간 경쟁입찰에 참가하는 자는 해당 제품을 직접 생산한다는 확인을 받아야 함</li>
+                            <li>공공기관은 낙찰자가 직접생산확인증명서를 제출하지 않으면 계약을 체결할 수 없음</li>
+                            <li style="color:#c62828; font-weight:700;">⚠ 1,000만원 미만 소액 계약이라도 중소기업 직접생산확인증명서 징구는 필수</li>
+                        </ul>
+                    </div>
+
+                    <div class="nj-law-box">
+                        <div class="nj-law-title">② 중소기업제품 구매촉진 및 판로지원에 관한 법률 (판로지원법)</div>
+                        <ul class="nj-list">
+                            <li>제5조(공공기관의 구매의무) — 공공기관은 중소기업제품 구매목표비율 이상 구매 의무</li>
+                            <li>제6조(소기업·소상공인 제품 구매촉진) — 소기업·소상공인이 직접 생산한 제품을 우선 구매하도록 노력</li>
+                            <li>제7조(구매계획 및 실적보고) — 매년 구매계획 수립 및 실적 보고 의무</li>
+                        </ul>
+                    </div>
+
+                    <div class="nj-law-box">
+                        <div class="nj-law-title">③ 중소기업제품 구매촉진 및 판로지원에 관한 법률 시행령</div>
+                        <ul class="nj-list">
+                            <li>제4조(소기업·소상공인 제품의 범위) — 소기업·소상공인이 직접 생산·제공하는 물품·용역</li>
+                            <li>제6조(의무구매 비율) — 물품 구매액의 일정 비율 이상을 소기업·소상공인 제품으로 구매</li>
+                        </ul>
+                    </div>
+
+                    <div class="nj-law-box">
+                        <div class="nj-law-title">④ 조달청 고시 — 소기업·소상공인 간 경쟁 제품 지정</div>
+                        <ul class="nj-list">
+                            <li>조달청장이 매년 고시하는 소기업·소상공인 간 경쟁 제품 목록에 해당하는 물품은 해당 기업에서만 구매 가능</li>
+                            <li>나라장터 종합쇼핑몰 이용 시 소기업·소상공인 전용 쇼핑몰 우선 확인 필요</li>
+                        </ul>
+                    </div>
+
+                    <div class="nj-fire-row">
+                        <div class="nj-fire-note">
+                            <div class="nj-fire-note-title">🚒 소방 해당 품목 안내</div>
+                            * 소방에서는 <strong>소방호스</strong>와 <strong>의용소방대 피복</strong> 등이 소기업·소상공인 간 경쟁 제품에 해당되므로,
+                            반드시 소기업·소상공인 업체를 통해 구매하여야 합니다.<br>
+                            구매 전 조달청 고시 최신 지정 목록을 확인하시기 바랍니다.
+                        </div>
+                        <button class="nj-next-btn" onclick="showNjProcedure()">진행순서 보기 →</button>
+                    </div>
+                </div>
+
+                <!-- 슬라이드 2: 진행순서 -->
+                <div class="nj-slide">
+                    <div class="nj-proc-header">
+                        <button class="nj-back-btn" onclick="hideNjProcedure()">◀ 돌아가기</button>
+                        <div class="nj-proc-title">📋 조달청 나라장터 물품구매 진행순서</div>
+                    </div>
+
+                    <div class="nj-proc-steps">
+                        <div class="nj-step"><span class="nj-step-num">1</span><span class="nj-step-text">물품계약서초안 작성 (수요기관 → 조달업체 전송)</span></div>
+                        <div class="nj-step-arrow">↓</div>
+                        <div class="nj-step"><span class="nj-step-num">2</span><span class="nj-step-text">물품계약응답서 수신 (조달업체 → 수요기관)</span></div>
+                        <div class="nj-step-arrow">↓</div>
+                        <div class="nj-step"><span class="nj-step-num">3</span><span class="nj-step-text">물품계약서(승인통보) 발송 (수요기관 → 조달업체)</span></div>
+                        <div class="nj-step-arrow">↓</div>
+                        <div class="nj-step"><span class="nj-step-num">4</span><span class="nj-step-text">검사검수요청서 수신 (조달업체 → 수요기관)</span></div>
+                        <div class="nj-step-arrow">↓</div>
+                        <div class="nj-step"><span class="nj-step-num">5</span><span class="nj-step-text">검사처리 (수요기관)</span></div>
+                        <div class="nj-step-arrow">↓</div>
+                        <div class="nj-step"><span class="nj-step-num">6</span><span class="nj-step-text">검수처리 (수요기관)</span></div>
+                        <div class="nj-step-arrow">↓</div>
+                        <div class="nj-step"><span class="nj-step-num">7</span><span class="nj-step-text">물품납품 및 영수증 확인 (수요기관 ↔ 조달업체)</span></div>
+                        <div class="nj-step-arrow">↓</div>
+                        <div class="nj-step"><span class="nj-step-num">8</span><span class="nj-step-text">세금계산서 수신 (조달업체 → 수요기관)</span></div>
+                        <div class="nj-step-arrow">↓</div>
+                        <div class="nj-step"><span class="nj-step-num">9</span><span class="nj-step-text">대금청구서 수신 (조달업체 → 수요기관)</span></div>
+                        <div class="nj-step-arrow">↓</div>
+                        <div class="nj-step"><span class="nj-step-num">10</span><span class="nj-step-text">지급처리 (수요기관)</span></div>
+                    </div>
+
+                    <div class="nj-proc-img-wrap">
+                        <div class="nj-proc-img-label">📌 나라장터 물품구매 흐름도</div>
+                        <img src="file:///C:/Users/82109/Desktop/매뉴얼제작/aI로 만들어보기/조달물품구매.jpg"
+                             alt="조달물품구매 흐름도"
+                             class="nj-proc-img"
+                             onerror="this.parentElement.innerHTML='<div style=\'color:#aaa;font-size:12px;text-align:center;padding:20px;\'>이미지를 불러올 수 없습니다.<br>경로: C:\\Users\\82109\\Desktop\\매뉴얼제작\\aI로 만들어보기\\조달물품구매.jpg</div>'">
+                    </div>
+                </div>
+
+            </div><!-- /nj-slides-inner -->
+        </div><!-- /nj-slides-wrap -->
+    </div>
+
+    <!-- 지출방법 패널 -->
+    <div class="payment-panel" id="paymentPanel">
+        <div class="payment-title">지출방법을 선택하여 주세요</div>
+        <div class="payment-grid">
+            <div class="payment-card" id="payment-card" onclick="selectPayment('card')">
+                <div class="payment-icon">💳</div>
+                <div class="payment-name">카드지출</div>
+            </div>
+            <div class="payment-card" id="payment-transfer" onclick="selectPayment('transfer')">
+                <div class="payment-icon">🏦</div>
+                <div class="payment-name">계좌이체</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 유의사항 -->
+    <div class="notice-box" id="noticeBox">
+        <div class="notice-title">* 유의사항 *</div>
+        <p>본 소방계약 도우미는 예산을 처음 집행하는 실무자의 접근성을 도와주고자 제작하였으며<br>
+        일정 조건을 입력하면 그에 해당하는 관련근거를 제시하여 최대한 자료의 신빙성을 높이고자 하였습니다.<br>
+        오타 또는 보충하여야 하는 관련근거, 보다 좋은 아이디어 등이 있으시면 빠른시일 내 반영하도록 하겠습니다.</p>
+    </div>
+
+</div>
+
+<!-- 플로팅 버튼 -->
+<div class="floating-btns">
+    <button class="float-btn prev" onclick="goPrev()">◀ 이전단계</button>
+    <button class="float-btn reset" onclick="resetAll()">↺ 초기화</button>
+</div>
+
+<script>
+function resetAmountInput() {
+    resetAmountInput();
+    document.getElementById('lawGuideMsg').style.display = 'none';
+}
+
+const TITLES = {
+    construction: '🏗️ 공사 계약',
+    service:      '🔧 용역 계약',
+    goods:        '📦 물품 계약'
+};
+
+/* ── 1단계 관련근거: 계약의 종류 클릭 시 ── */
+const REF_STEP1 = `
+<div class="ref-law-name">국가종합전자조달시스템 입찰참가자격등록규정</div>
+<div class="ref-enacted">[시행 2026. 1. 23.] [조달청고시 제2026-6호, 2026. 1. 23., 일부개정.]<br>조달청(조달등록팀), 070-4056-7061</div>
+<div class="ref-art">
+  <div class="ref-art-title">제1조(목적)</div>
+  <div class="ref-art-body">이 규정은 재정경제부장관이 지정정보처리장치로 고시한 국가종합전자조달시스템(이하 "시스템"이라 한다)의 관리·운용자인 조달청장(이하 "운영자"라 한다)이 「국가를 당사자로 하는 계약에 관한 법률 시행규칙」(이하 "시행규칙"이라 한다) 제15조 제1항에 따라 경쟁입찰참가자격의 등록(이하 "등록"이라 한다)에 관한 사항을 정함을 목적으로 한다.</div>
+</div>
+<div class="ref-art">
+  <div class="ref-art-title">제2조(용어의 정의)</div>
+  <div class="ref-art-body">
+    ① 이 규정에서 사용하는 용어의 정의는 다음 각 호와 같다.<br>
+    <div class="sub">
+      1. "물품"이란 국내에서 생산 또는 공급되는 내자물품과 국외에서 생산 또는 공급되는 외자물품을 말한다.<br><br>
+      2. "물품분류번호"란 「물품목록정보의 관리 및 이용에 관한 법률 시행령」제9조 제1항에 따라 2자리씩 4단계 계층구조로 이루어진 8자리 숫자를 말하며, "세부품명번호"는 물품의 구매 등에 효과적으로 사용할 수 있도록 용도·재질·형태 등에 따라 물품분류번호 8자리 숫자 다음에 2자리를 추가한 총 10자리 숫자를 말한다.<br><br>
+      3. "공사"란 「건설산업기본법」, 「전기공사업법」, 「정보통신공사업법」, 「소방시설공사업법」, 「국가유산수리 등에 관한 법률」, 기타 다른 법률의 규정에 의한 토목·건축·산업설비·환경시설·조경·구조물·소방시설·국가유산 등 시설물의 설치·유지·보수·해체·부지조성 등의 사업을 말한다.<br><br>
+      4. "용역"이란 다음 각 목의 어느 하나에 해당하는 것을 말한다.<br>
+      &nbsp;&nbsp;가. 「건설기술진흥법」, 「엔지니어링산업진흥법」, 「건축사법」, 「기술사법」, 「전력기술관리법」, 「정보통신공사업법」, 「소방시설공사업법」, 「공간정보의 구축 및 관리 등에 관한 법률」, 기타 다른 법률의 규정에 의한 감리 또는 설계 등의 기술 용역<br>
+      &nbsp;&nbsp;나. 「소프트웨어진흥법」, 「환경영향평가법」, 「폐기물관리법」, 「에너지이용합리화법」, 「시설물의 안전 및 유지관리에 관한 특별법」, 기타 다른 법률의 규정에 의한 전산용역·전산장비유지용역·환경영향평가업·청사관리용역·청소용역 등 일반 용역<br><br>
+      5. "이용기관"이란 「조달사업에 관한 법률」 제2조 제5호에 따른 수요기관으로서 조달업무를 수행하기 위하여 시스템에 등록한 기관을 말한다.<br><br>
+      6. "게재기관"이란 이용기관 중에서 자체적으로 경쟁입찰참가자격을 등록 받아 관리하고 있는 기관으로서 시행규칙 제15조 제5항에 따라 자체 등록정보를 시스템에 게재한 기관을 말한다.<br><br>
+      7. "등록확인"이란 등록담당공무원이 등록신청서와 등록요건 구비서류를 검토하여 등록을 확인하는 것을 말한다.<br><br>
+      8. "대표대표자"란 입찰 및 계약 등에 관한 법률적 행위에 대표권을 행사하기 위하여 법인등기부등본(법인 사업자)과 사업자등록증(개인 사업자)상의 유효한 대표자들이 대리인으로 선정한 자 또는 관리인을 말한다.<br><br>
+      9. "업종코드"란 운영자가 업종DB분류체계에 의해 법령분야별로 업종을 분류하여 부여한 4자리 숫자로 이루어진 코드를 말하며, 업종DB분류코드 2자리 숫자와 업종일련번호 2자리 숫자를 차례로 배열하여 구성한다.<br><br>
+      10. "행정처분기관"이란 행정처분 주체가 되는 국가기관, 지방자치단체, 교육기관을 말한다.<br><br>
+      11. "신원확인 입찰"이란 개인인증 수단 중, 본인 소유의 스마트폰임을 인증하여 신원확인하는 방식인 간편인증, 금융인증서, 모바일 신분증, 나라장터 앱을 이용하여 전자입찰자(대표자 또는 입찰대리인)의 신원을 확인하는 입찰을 말한다.<br><br>
+      12. &lt;삭제&gt;<br><br>
+      13. "관리인"이란 「채무자회생 및 파산에 관한 법률」 제2편 회생절차 개시결정이 있는 업체의 관리인을 말한다.<br><br>
+      14. "국외소재업체"란 국외에서 물품·공사·용역 등의 사업을 하는 자로서 국내에 사업자 등록을 하지 않은 업체를 말한다.<br><br>
+      15. "안전관리물자"란 국민의 생활안전, 생명보호, 보건위생과 관련된 조달물자로서 조달청장이 지정하여 고시하는 물자를 말한다.<br><br>
+      16. '개인인증 수단'이란 간편인증, 공동인증서, 금융인증서, 모바일신분증, 나라장터 앱 등 「전자서명법」 제8조의 전자서명인증 사업자 또는 국가기관이 개인에 대하여 본인임을 전자적으로 확인해 주는 인증 수단을 통칭하며, 개인인증수단을 통해 로그인 후 전자문서 송수신이 필요 없는 조달업무를 처리할 수 있다.
+    </div>
+    ② 제1항 각 호의 용어 이외에는 「국가를 당사자로 하는 계약에 관한 법률」(이하 "법"이라 한다), 「조달사업에 관한 법률」 등 관련법령 및 계약예규에서 규정하는 바에 따른다.
+  </div>
+</div>
+<div class="ref-art">
+  <div class="ref-art-title">제3조(다른 법령과의 관계)</div>
+  <div class="ref-art-body">등록에 관하여는 법, 「국가를 당사자로 하는 계약에 관한 법률 시행령」(이하 "시행령"이라 한다), 시행규칙, 시행령특례규정 및 시행특례규칙 등에서 달리 규정하는 경우를 제외하고는 이 규정이 정하는 바에 따른다.</div>
+</div>`;
+
+/* ── 2단계 관련근거: 공사/용역/물품 클릭 시 ── */
+const REF_STEP2 = `
+<div class="ref-art">
+  <div class="ref-art-title">가격 구조 요약</div>
+  <div class="ref-art-body">
+    - 추정가격: 관·도급 자재비, 부가세 제외<br>
+    - 기초금액: 추정가격 + 부가세<br>
+    - 추정금액: 기초금액 + 관·도급 자재비 × 추정가격
+  </div>
+</div>
+<div class="ref-art">
+  <div class="ref-art-title">▪ 추정가격</div>
+  <div class="ref-art-body">물품·공사·용역 등의 계약을 체결할 때 「지방계약법」 제5조에 따른 국제입찰의 대상 여부를 판단하는 기준 등으로 삼기 위하여 예정가격이 결정되기 전에 산정된 가격</div>
+</div>
+<div class="ref-art">
+  <div class="ref-art-title">▪ 예정가격</div>
+  <div class="ref-art-body">입찰이나 수의계약 등에 대하여 낙찰자 및 계약금액의 결정기준으로 삼기 위하여 미리 작성·비치해 두는 가격</div>
+</div>
+<div class="ref-art">
+  <div class="ref-art-title">▪ 추정금액</div>
+  <div class="ref-art-body">추정가격에 부가가치세와 관급자재로 공급될 부분의 가격을 합한 금액</div>
+</div>
+<div class="ref-art">
+  <div class="ref-art-title">▪ 기초금액</div>
+  <div class="ref-art-body">계약담당자가 기술 또는 설계담당자 등이 거래실례가격·원가계산서 가격·유사거래실례가격 및 견적가격 등에 따라 조사한 가격이나 설계가격에 대하여 적정 여부를 검토한 금액</div>
+</div>`;
+
+/* ── 금액별 임계값 데이터 ── */
+const THRESHOLDS = [
+    {
+        amount: 0, label: '0원',
+        rules: [
+            { title: '원단위 절사', items: ['지방회계법 제55조(끝수처리)'] }
+        ]
+    },
+    {
+        amount: 500000, label: '50만원',
+        rules: [
+            { title: '물품 구매 시 자산취득 및 소모품 구분 기준', items: ['대구시 물품관리조례 제13조', '조달청고시 제2021-41호[내용연수]'] }
+        ]
+    },
+    {
+        amount: 5000000, label: '500만원',
+        rules: [
+            { title: '500만원 초과 계약 시 관할 서장 결재', items: ['대구시 회계관리 규칙 별표3', '[소방서 사무전결규정 표준안] 500만원 초과'] },
+            { title: '각 사업부서의 서 계약담당자 계약 요청금액', items: [] }
+        ]
+    },
+    {
+        amount: 10000000, label: '1,000만원',
+        rules: [
+            { title: '인지세법 제3조(과세문서 및 세액) 표의3', items: ['ex) 1천만원 초과 ~ 3천만원 이하는 2만원', '※ 단순 물품구매는 수입인지 제외해야 함.'] },
+            { title: '계약 시 중소기업 직접생산품 확인 의무', items: ['중소기업 직접생산 구매촉진 및 판로지원에 관한 법률 제9조(중기간 경쟁제품일 경우)'] }
+        ]
+    },
+    {
+        amount: 15000000, label: '1,500만원',
+        rules: [
+            { title: '건설산업기본법 시행령 제8조(경미한 공사등)', items: ['1,500만원 미만 전문공사 제외가능', '※ 미만이라도 필수공사 확인! (가스공사등)'] }
+        ]
+    },
+    {
+        amount: 20000000, label: '2,000만원',
+        rules: [
+            { title: '여성·장애인 제외 1인 수의 최고금액(추정가격)', items: ['초과금액 수의계약 시 여성·장애인 증빙확인'] },
+            { title: '물품구매 일상감사 및 계약심사 기준금액', items: [] },
+            { title: '채권구매 금액', items: ['공사: 도시철도 채권 / 용역·물품: 지역재발채권'] },
+            { title: '산업안전보건관리비 계상 금액', items: [] },
+            { title: '전자상거래 법에 따른 카드 물품구매 1회 한도', items: [] },
+            { title: '[감찰업무] 청렴 메시지 필수 전송금액(3일내)', items: [] }
+        ]
+    },
+    {
+        amount: 30000000, label: '3,000만원',
+        rules: [
+            { title: '하자보수 보증금 각서 불가금액', items: ['해당계약 완료 시 보증보험 또는 납부 필수', '공정에 따른 보증금률 확인필수(조경공사 제외)'] }
+        ]
+    },
+    {
+        amount: 50000000, label: '5,000만원',
+        rules: [
+            { title: '승낙사항으로 계약가능한 최고금액(령 제50조)', items: [] },
+            { title: '계약보증금 지급각서 가능 최고금액(령 제53조)', items: [] }
+        ]
+    }
+];
+
+function updateRefByAmount() {
+    const raw    = document.getElementById('amountInput').value;
+    const amount = raw !== '' ? parseFloat(raw) : null;
+
+    // 금액 미입력 시 기본 관련근거 유지
+    if (amount === null || isNaN(amount)) {
+        document.getElementById('refBody').innerHTML = REF_STEP2;
+        return;
+    }
+
+    let html = `<div class="th-header"><span class="th-col-amt">단위금액</span><span class="th-col-rule">관련법령 및 근거</span></div>`;
+
+    THRESHOLDS.forEach(th => {
+        const active = amount >= th.amount;
+        let rulesHtml = '';
+        th.rules.forEach(r => {
+            rulesHtml += `<div class="th-rule-title">• ${r.title}</div>`;
+            r.items.forEach(it => {
+                rulesHtml += `<div class="th-rule-item">- ${it}</div>`;
+            });
+        });
+        html += `<div class="th-row ${active ? 'active' : 'inactive'}">
+            <div class="th-amt">${th.label}</div>
+            <div class="th-rules">${rulesHtml}</div>
+        </div>`;
+    });
+
+    document.getElementById('refBody').innerHTML = html;
+}
+
+/* ── 챙겨야 할 목록 데이터 (지방계약법 기준) ── */
+const CHECKLIST_DATA = [
+    {
+        minAmount: 0,
+        section: '기본 체크사항 (모든 계약 공통)',
+        items: [
+            { text: '원단위 절사 처리',
+              law: '지방회계법 제55조(끝수처리)' },
+            { text: '예정가격 작성·비치 (입찰자에게 비공개)',
+              law: '지방계약법 시행령 제7조(예정가격의 결정기준)' },
+            { text: '계약서 작성 (소액 시 납품서·청구서로 갈음 가능)',
+              law: '지방계약법 제14조, 시행령 제49조(계약서 작성의 생략)' },
+            { text: '이행 완료 후 검사 실시 (완료 통보 후 14일 이내)',
+              law: '지방계약법 제17조, 시행령 제64조(검사)' },
+            { text: '대가 지급 (검사 완료 후 청구 → 5일 이내 지급)',
+              law: '지방계약법 시행령 제66조(대가의 지급)' },
+        ]
+    },
+    {
+        minAmount: 500000,
+        section: '50만원 이상',
+        items: [
+            { text: '물품 자산취득 또는 소모품 구분 확인',
+              law: '대구시 물품관리조례 제13조 / 조달청고시 제2021-41호[내용연수]' },
+        ]
+    },
+    {
+        minAmount: 5000000,
+        section: '500만원 초과',
+        items: [
+            { text: '관할 서장 결재 필요',
+              law: '대구시 회계관리 규칙 별표3 / [소방서 사무전결규정 표준안]' },
+            { text: '계약보증금 납부 (계약금액의 10% 이상)',
+              law: '지방계약법 제15조, 시행령 제51조(계약보증금의 납부)' },
+        ]
+    },
+    {
+        minAmount: 10000000,
+        section: '1,000만원 초과',
+        items: [
+            { text: '계약서 수입인지 첨부 (1천~3천만원: 2만원 / 3천~5천만원: 4만원) ※ 단순 물품구매 제외',
+              law: '인지세법 제3조(과세문서 및 세액) 표의 3' },
+            { text: '중소기업 직접생산확인서 징구 (중기간 경쟁제품 해당 시)',
+              law: '중소기업제품 구매촉진 및 판로지원에 관한 법률 제9조' },
+            { text: '나라장터(G2B) 전자입찰 실시',
+              law: '지방계약법 시행령 제37조(전자조달시스템에 의한 입찰)' },
+            { text: '입찰공고 7일 이상 게시 (나라장터 및 기관 홈페이지)',
+              law: '지방계약법 시행령 제35조(입찰공고)' },
+        ]
+    },
+    {
+        minAmount: 15000000,
+        section: '1,500만원 이상 (공사)',
+        items: [
+            { text: '전문공사 면허 보유 여부 확인 (1,500만원 미만 일부 제외 가능, 가스공사 등 필수공사는 별도 확인)',
+              law: '건설산업기본법 시행령 제8조(경미한 공사등)' },
+        ]
+    },
+    {
+        minAmount: 20000000,
+        section: '2,000만원 초과',
+        items: [
+            { text: '1인 수의계약 불가 → 경쟁입찰 또는 2인 이상 견적 적용 (여성·장애인 기업 제외)',
+              law: '지방계약법 제9조 제1항, 시행령 제30조(수의계약에 의할 수 있는 경우)' },
+            { text: '여성·장애인 기업 수의계약 시 증빙 서류 확인',
+              law: '지방계약법 시행령 제30조 제1항 제6·7호' },
+            { text: '일상감사 및 계약심사 실시',
+              law: '지방계약법 제4조(계약의 원칙) / 대구시 회계관리 규칙' },
+            { text: '채권 구매 (공사: 도시철도채권 / 용역·물품: 지역개발채권)',
+              law: '도시철도법 제22조 / 지역개발채권 발행 조례' },
+            { text: '산업안전보건관리비 계상 (공사 해당)',
+              law: '산업안전보건법 제72조, 시행규칙 제89조' },
+            { text: '청렴 메시지 발송 (계약 후 3일 이내)',
+              law: '[감찰업무] 내부지침' },
+        ]
+    },
+    {
+        minAmount: 30000000,
+        section: '3,000만원 초과',
+        items: [
+            { text: '하자보수보증금 지급각서 불가 → 보증보험증서 또는 현금 납부 필수',
+              law: '지방계약법 시행령 제69조(하자보수보증금) / 시행규칙 별표 5(보증금률)' },
+            { text: '공정별 하자보수 보증금률 확인 (조경공사 제외)',
+              law: '지방계약법 시행규칙 별표 5' },
+        ]
+    },
+    {
+        minAmount: 50000000,
+        section: '5,000만원 초과',
+        items: [
+            { text: '2인 이상 견적 수의계약 불가 → 일반경쟁입찰 의무',
+              law: '지방계약법 제9조 제1항, 시행령 제33조(일반경쟁입찰)' },
+            { text: '계약보증금 지급각서 불가 → 보증서 납부 필수',
+              law: '지방계약법 제15조, 시행령 제52조(계약보증금의 면제)' },
+            { text: '적격심사 낙찰제 적용 여부 확인 (공사 추정가격 300억 미만)',
+              law: '지방계약법 시행규칙 별표 2(적격심사 세부기준)' },
+        ]
+    },
+];
+
+function renderChecklist() {
+    const raw    = document.getElementById('amountInput').value;
+    const amount = raw !== '' ? parseFloat(raw) : null;
+    if (amount === null || isNaN(amount)) return;
+
+    const amountStr = amount.toLocaleString('ko-KR') + '원';
+    let html = '';
+
+    CHECKLIST_DATA.forEach(sec => {
+        if (amount >= sec.minAmount) {
+            html += `<div class="cl-section">`;
+            html += `<div class="cl-section-title">${sec.section}</div>`;
+            sec.items.forEach(item => {
+                html += `<div class="cl-item">
+                    <span class="cl-check">☑</span>
+                    <div>
+                        <div class="cl-text">${item.text}</div>
+                        <div class="cl-law">📜 ${item.law}</div>
+                    </div>
+                </div>`;
+            });
+            html += `</div>`;
+        }
+    });
+
+    document.getElementById('clAmount').textContent = `입력 기초금액: ${amountStr}`;
+    document.getElementById('clContent').innerHTML  = html;
+
+    const panel = document.getElementById('checklistPanel');
+    panel.classList.add('show');
+    currentStep = 3;
+    setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+/* ── 동작 로직 ── */
+let isOpen = false;
+
+function toggleCat() {
+    isOpen = !isOpen;
+    document.getElementById('catCard').classList.toggle('active', isOpen);
+    document.getElementById('catArrow').style.transform = isOpen ? 'rotate(90deg)' : '';
+    document.getElementById('expandRow').classList.toggle('show', isOpen);
+
+    if (isOpen) {
+        document.getElementById('refBody').innerHTML = REF_STEP1;
+        document.getElementById('usageGuide').style.display = 'none';
+        document.getElementById('noticeBox').style.display  = 'none';
+        currentStep = 1;
+    } else {
+        // 닫을 때 전체 초기화
+        showTypeView();
+        resetAmountInput();
+        document.getElementById('usageGuide').style.display = '';
+        document.getElementById('noticeBox').style.display  = '';
+    }
+}
+
+function selectType(key) {
+    // 공사/용역/물품 선택 → 기초금액 뷰로 전환
+    document.getElementById('typeView').style.display   = 'none';
+    document.getElementById('amountView').style.display = 'block';
+    document.getElementById('backBtn').classList.add('show');
+
+    document.getElementById('amountTitle').textContent = TITLES[key];
+    resetAmountInput();
+
+    // 관련근거 전환
+    document.getElementById('refBody').innerHTML = REF_STEP2;
+    currentStep = 2;
+}
+
+function goBack() {
+    // 뒤로가기 → 공사/용역/물품 뷰로 복귀
+    showTypeView();
+    document.getElementById('refBody').innerHTML = REF_STEP1;
+    resetAmountInput();
+}
+
+/* ── 단계 추적 ── */
+// 0: 닫힘, 1: 종류선택, 2: 금액입력, 3: 챙겨야할목록, 4: 계약방법, 5: 지출방법, 6: 카드상세
+let currentStep = 0;
+
+function resetAll() {
+    // 카드 닫기
+    if (isOpen) toggleCat();
+    // 모든 패널 숨기기
+    document.getElementById('checklistPanel').classList.remove('show');
+    document.getElementById('methodPanel').classList.remove('show');
+    document.getElementById('paymentPanel').classList.remove('show');
+    document.getElementById('cardDetailPanel').classList.remove('show');
+    document.getElementById('narajangteoPanel').classList.remove('show');
+    document.getElementById('njSlidesInner').style.transform = 'translateX(0)';
+    resetAmountInput();
+    document.querySelectorAll('.method-card, .payment-card').forEach(el => el.classList.remove('active'));
+    document.getElementById('usageGuide').style.display = '';
+    document.getElementById('noticeBox').style.display  = '';
+    currentStep = 0;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goPrev() {
+    if (currentStep === 6) {
+        document.getElementById('cardDetailPanel').classList.remove('show');
+        document.querySelectorAll('.payment-card').forEach(el => el.classList.remove('active'));
+        document.getElementById('paymentPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        currentStep = 5;
+    } else if (currentStep === 5) {
+        document.getElementById('paymentPanel').classList.remove('show');
+        document.getElementById('narajangteoPanel').classList.remove('show');
+        document.getElementById('duoPanel').classList.remove('show');
+            document.querySelectorAll('.method-card').forEach(el => el.classList.remove('active'));
+        document.getElementById('methodPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        currentStep = 4;
+    } else if (currentStep === 4) {
+        document.getElementById('methodPanel').classList.remove('show');
+        document.getElementById('checklistPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        currentStep = 3;
+    } else if (currentStep === 3) {
+        document.getElementById('checklistPanel').classList.remove('show');
+        resetAmountInput();
+        document.getElementById('refBody').innerHTML = REF_STEP2;
+        currentStep = 2;
+    } else if (currentStep === 2) {
+        goBack();
+        currentStep = 1;
+    } else if (currentStep === 1) {
+        toggleCat();
+        currentStep = 0;
+    }
+}
+
+function showTypeView() {
+    document.getElementById('typeView').style.display   = 'block';
+    document.getElementById('amountView').style.display = 'none';
+    document.getElementById('backBtn').classList.remove('show');
+    document.querySelectorAll('.sub-btn').forEach(el => el.classList.remove('active'));
+}
+
+function showMethodPanel() {
+    const panel = document.getElementById('methodPanel');
+    panel.classList.add('show');
+    document.querySelectorAll('.method-card').forEach(el => el.classList.remove('active'));
+    currentStep = 4;
+    setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+function selectMethod(key) {
+    document.querySelectorAll('.method-card').forEach(el => el.classList.remove('active'));
+    document.getElementById('method-' + key).classList.add('active');
+
+    const paymentPanel = document.getElementById('paymentPanel');
+    const duoPanel     = document.getElementById('duoPanel');
+
+    // 두 패널 모두 초기화
+    paymentPanel.classList.remove('show');
+    duoPanel.classList.remove('show');
+    document.getElementById('duoResult').classList.remove('show');
+    document.querySelectorAll('.duo-yn-btn').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.payment-card').forEach(el => el.classList.remove('active'));
+    document.getElementById('cardDetailPanel').classList.remove('show');
+
+    document.getElementById('narajangteoPanel').classList.remove('show');
+
+    if (key === 'solo') {
+        paymentPanel.classList.add('show');
+        currentStep = 5;
+        setTimeout(() => paymentPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    } else if (key === 'narajangteo') {
+        const njPanel = document.getElementById('narajangteoPanel');
+        njPanel.classList.add('show');
+        currentStep = 5;
+        setTimeout(() => njPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    }
+}
+
+function showNjProcedure() {
+    document.getElementById('njSlidesInner').style.transform = 'translateX(-100%)';
+}
+
+function hideNjProcedure() {
+    document.getElementById('njSlidesInner').style.transform = 'translateX(0)';
+}
+
+function selectDuoAnswer(answer) {
+    document.querySelectorAll('.duo-yn-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('duo' + (answer === 'yes' ? 'Yes' : 'No')).classList.add('active');
+    const result = document.getElementById('duoResult');
+    if (answer === 'no') {
+        result.classList.add('show');
+    } else {
+        result.classList.remove('show');
+    }
+}
+
+function selectPayment(key) {
+    document.querySelectorAll('.payment-card').forEach(el => el.classList.remove('active'));
+    document.getElementById('payment-' + key).classList.add('active');
+
+    const cardDetail = document.getElementById('cardDetailPanel');
+    if (key === 'card') {
+        cardDetail.classList.add('show');
+        currentStep = 6;
+        setTimeout(() => cardDetail.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    } else {
+        cardDetail.classList.remove('show');
+    }
+}
+
+function openQuickCardConsumable() {
+    if (isOpen) toggleCat();
+    document.getElementById('checklistPanel').classList.remove('show');
+    document.getElementById('methodPanel').classList.remove('show');
+    document.getElementById('paymentPanel').classList.remove('show');
+    document.getElementById('narajangteoPanel').classList.remove('show');
+    document.getElementById('duoPanel').classList.remove('show');
+    const panel = document.getElementById('cardDetailPanel');
+    panel.classList.add('show');
+    currentStep = 6;
+    setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+</script>
+
+</body>
+</html>
