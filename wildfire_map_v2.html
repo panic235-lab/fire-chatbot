@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>산불 확산 예측</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+:root {
+  --bg:#0e0e0e; --panel:#181818; --card:#222; --border:#2e2e2e;
+  --fire1:#FF2200; --fire2:#FF6600; --fire3:#FFAA00;
+  --safe:#00E676; --warn:#FFD600; --danger:#FF1744;
+  --text:#F0EDE8; --text2:#888; --text3:#444;
+  --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh;}
+
+/* 헤더 */
+.hdr{background:var(--panel);border-bottom:2px solid var(--fire1);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.hdr-icon{font-size:22px;}
+.hdr-title{font-size:14px;font-weight:900;}
+.hdr-sub{font-size:10px;color:var(--text2);}
+.hdr-badge{margin-left:auto;background:rgba(255,34,0,0.2);border:1px solid var(--fire1);color:var(--fire2);font-size:9px;font-weight:700;padding:3px 8px;border-radius:3px;}
+
+/* 지도 영역 */
+.map-wrap{flex:1;position:relative;overflow:hidden;background:#0a140a;min-height:0;}
+#mapIframe{width:100%;height:100%;border:none;display:block;}
+#overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+.map-hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:var(--text2);font-size:10px;padding:4px 10px;border-radius:10px;white-space:nowrap;pointer-events:none;}
+.wind-compass{position:absolute;top:10px;right:10px;width:48px;height:48px;background:rgba(0,0,0,0.75);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;pointer-events:none;}
+
+/* 하단 패널 */
+.panel{background:var(--panel);border-top:1px solid var(--border);flex-shrink:0;overflow-y:auto;max-height:58vh;}
+.tabs{display:flex;background:var(--bg);border-bottom:1px solid var(--border);}
+.tab{flex:1;padding:10px 4px;font-size:11px;font-weight:700;text-align:center;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;transition:all .15s;}
+.tab.on{color:var(--fire2);border-bottom-color:var(--fire2);}
+.tc{display:none;padding:12px 14px;}
+.tc.on{display:block;}
+
+/* 입력 요소 */
+.flabel{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.3px;margin-bottom:5px;display:block;}
+.fval{font-family:var(--mono);font-size:13px;color:var(--fire3);font-weight:700;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.field{display:flex;flex-direction:column;gap:3px;}
+input[type=range]{width:100%;height:4px;-webkit-appearance:none;background:var(--border);border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--fire2);cursor:pointer;border:2px solid var(--bg);}
+select{width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:12px;padding:7px 8px;border-radius:4px;outline:none;}
+input[type=text],input[type=number]{background:var(--card);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:7px 9px;border-radius:4px;outline:none;width:100%;}
+input:focus{border-color:var(--fire2);}
+
+/* 풍향 */
+.wdirs{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-bottom:10px;}
+.wdir{background:var(--card);border:1px solid var(--border);color:var(--text2);font-size:10px;font-weight:700;padding:7px 2px;border-radius:4px;cursor:pointer;text-align:center;transition:all .15s;-webkit-tap-highlight-color:transparent;}
+.wdir.on{background:var(--fire1);border-color:var(--fire1);color:#fff;}
+
+/* 시간 버튼 */
+.tbtns{display:flex;gap:5px;margin-bottom:10px;}
+.tbtn{flex:1;background:var(--card);border:1px solid var(--border);color:var(--text2);font-size:11px;font-weight:700;padding:8px 2px;border-radius:4px;cursor:pointer;text-align:center;transition:all .15s;font-family:'Noto Sans KR',sans-serif;-webkit-tap-highlight-color:transparent;}
+.tbtn.on{background:rgba(255,170,0,.15);border-color:var(--fire3);color:var(--fire3);}
+
+/* 위치 */
+.loc-row{display:flex;gap:6px;margin-bottom:10px;}
+.loc-row input{flex:1;}
+.loc-btn{background:var(--card);border:1px solid var(--border);color:var(--text2);font-size:11px;font-weight:700;padding:0 10px;border-radius:4px;cursor:pointer;white-space:nowrap;font-family:'Noto Sans KR',sans-serif;-webkit-tap-highlight-color:transparent;}
+.loc-btn:active{background:var(--border);}
+
+/* 실행 버튼 */
+.run-btn{width:100%;background:linear-gradient(135deg,var(--fire1),var(--fire2));border:none;color:#fff;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:900;padding:13px;border-radius:6px;cursor:pointer;letter-spacing:.5px;transition:all .2s;-webkit-tap-highlight-color:transparent;}
+.run-btn:active{transform:scale(.98);opacity:.9;}
+
+/* 결과 */
+.res-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+.res-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;}
+.res-label{font-size:9px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;}
+.res-val{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--fire3);}
+.res-unit{font-size:9px;color:var(--text2);margin-top:2px;}
+.dbar-wrap{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:10px;}
+.dbar-top{display:flex;justify-content:space-between;font-size:10px;margin-bottom:6px;}
+.dlevel{font-weight:900;font-size:13px;}
+.dbar{height:6px;background:linear-gradient(90deg,#00E676,#FFD600,#FF6600,#FF1744);border-radius:3px;position:relative;}
+.dmarker{position:absolute;top:-3px;width:12px;height:12px;background:#fff;border-radius:50%;border:2px solid #333;transform:translateX(-50%);transition:left .6s cubic-bezier(.34,1.56,.64,1);box-shadow:0 0 6px rgba(255,255,255,.4);}
+.dbar-labels{display:flex;justify-content:space-between;font-size:8px;color:var(--text2);margin-top:3px;}
+.alert{border-radius:6px;padding:10px 12px;font-size:11px;line-height:1.6;border-left:3px solid;display:none;margin-bottom:10px;}
+.alert.on{display:block;}
+.alert.danger{background:rgba(255,23,68,.1);border-color:var(--danger);color:#FF8A80;}
+.alert.warn{background:rgba(255,214,0,.1);border-color:var(--warn);color:#FFE57F;}
+.alert.ok{background:rgba(0,230,118,.1);border-color:var(--safe);color:#69F0AE;}
+.coord-box{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px;font-size:11px;line-height:1.9;font-family:var(--mono);display:none;}
+.coord-box.on{display:block;}
+.coord-label{font-size:9px;color:var(--text2);font-family:'Noto Sans KR',sans-serif;margin-bottom:4px;}
+.copy-btn{background:var(--border);border:none;color:var(--text2);font-size:10px;padding:3px 8px;border-radius:3px;cursor:pointer;float:right;font-family:'Noto Sans KR',sans-serif;}
+.copy-btn:active{background:var(--fire2);color:#fff;}
+.legend-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+.leg{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+/* 캔버스 오버레이 */
+#overlay{position:absolute;top:0;left:0;pointer-events:none;}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="hdr-icon">🔥</div>
+  <div>
+    <div class="hdr-title">산불 확산 예측 지도</div>
+    <div class="hdr-sub">OpenStreetMap · 외부 라이브러리 없음</div>
+  </div>
+  <div class="hdr-badge">STANDALONE</div>
+</div>
+
+<!-- 지도 -->
+<div class="map-wrap" id="mapWrap">
+  <iframe id="mapIframe" src="about:blank"></iframe>
+  <canvas id="overlay"></canvas>
+  <div class="wind-compass" id="windCompass">🧭</div>
+  <div class="map-hint" id="mapHint">위경도 입력 후 예측 실행하면 지도가 표시됩니다</div>
+</div>
+
+<!-- 하단 패널 -->
+<div class="panel">
+  <div class="tabs">
+    <div class="tab on" onclick="switchTab('input')">⚙ 입력</div>
+    <div class="tab" onclick="switchTab('result')">📊 결과</div>
+  </div>
+
+  <!-- 입력 탭 -->
+  <div class="tc on" id="tc-input">
+    <span class="flabel">📍 발화 위치 (위도 / 경도)</span>
+    <div class="loc-row">
+      <input type="number" id="lat" step="0.0001" placeholder="위도 예) 36.1234">
+      <input type="number" id="lng" step="0.0001" placeholder="경도 예) 128.5678">
+      <button class="loc-btn" onclick="useGPS()">📡 현위치</button>
+    </div>
+
+    <span class="flabel">🧭 풍향 (불이 번지는 방향)</span>
+    <div class="wdirs">
+      <div class="wdir" onclick="setWind(0,'북',this)">북</div>
+      <div class="wdir" onclick="setWind(45,'북동',this)">북동</div>
+      <div class="wdir" onclick="setWind(90,'동',this)">동</div>
+      <div class="wdir" onclick="setWind(135,'남동',this)">남동</div>
+      <div class="wdir" onclick="setWind(180,'남',this)">남</div>
+      <div class="wdir" onclick="setWind(225,'남서',this)">남서</div>
+      <div class="wdir" onclick="setWind(270,'서',this)">서</div>
+      <div class="wdir" onclick="setWind(315,'북서',this)">북서</div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <span class="flabel">💨 풍속</span>
+        <div class="fval" id="wsV">6 m/s</div>
+        <input type="range" id="ws" min="1" max="25" value="6" step="0.5"
+          oninput="document.getElementById('wsV').textContent=this.value+' m/s'">
+      </div>
+      <div class="field">
+        <span class="flabel">📐 경사도</span>
+        <div class="fval" id="slV">15°</div>
+        <input type="range" id="sl" min="0" max="45" value="15" step="1"
+          oninput="document.getElementById('slV').textContent=this.value+'°'">
+      </div>
+      <div class="field">
+        <span class="flabel">💧 상대습도</span>
+        <div class="fval" id="rhV">30%</div>
+        <input type="range" id="rh" min="5" max="80" value="30" step="1"
+          oninput="document.getElementById('rhV').textContent=this.value+'%'">
+      </div>
+      <div class="field">
+        <span class="flabel">🌲 수종</span>
+        <select id="sp">
+          <option value="pine">소나무</option>
+          <option value="rigida">리기다소나무</option>
+          <option value="jatna">잣나무</option>
+          <option value="gmsol">곰솔(해송)</option>
+          <option value="larch">일본잎갈나무</option>
+          <option value="broad">활엽수</option>
+        </select>
+      </div>
+    </div>
+
+    <span class="flabel">⏱ 경과 시간</span>
+    <div class="tbtns">
+      <div class="tbtn on" onclick="setTime(30,this)">30분</div>
+      <div class="tbtn" onclick="setTime(60,this)">1시간</div>
+      <div class="tbtn" onclick="setTime(120,this)">2시간</div>
+      <div class="tbtn" onclick="setTime(180,this)">3시간</div>
+      <div class="tbtn" onclick="setTime(360,this)">6시간</div>
+    </div>
+
+    <button class="run-btn" onclick="run()">🔥 지도에 확산 범위 표시</button>
+  </div>
+
+  <!-- 결과 탭 -->
+  <div class="tc" id="tc-result">
+    <div class="res-grid">
+      <div class="res-card"><div class="res-label">불머리 거리</div><div class="res-val" id="rHead">—</div><div class="res-unit">m</div></div>
+      <div class="res-card"><div class="res-label">피해 면적</div><div class="res-val" id="rArea">—</div><div class="res-unit">ha</div></div>
+      <div class="res-card"><div class="res-label">확산 속도</div><div class="res-val" id="rSpeed">—</div><div class="res-unit">m/분</div></div>
+    </div>
+    <div class="dbar-wrap">
+      <div class="dbar-top"><span style="color:var(--text2)">위험 등급</span><span class="dlevel" id="dlevel">—</span></div>
+      <div class="dbar"><div class="dmarker" id="dmarker" style="left:2%"></div></div>
+      <div class="dbar-labels"><span>낮음</span><span>보통</span><span>높음</span><span>매우높음</span></div>
+    </div>
+    <div class="alert" id="alertBox"></div>
+    <div class="coord-box" id="coordBox">
+      <div class="coord-label">방어선 권고 좌표 <button class="copy-btn" onclick="copyCoords()">복사</button></div>
+      <div id="coordText"></div>
+    </div>
+    <div class="legend-row">
+      <div class="leg"><div class="leg-dot" style="background:#FF0000"></div>발화점</div>
+      <div class="leg"><div class="leg-dot" style="background:#FF4400;opacity:.8"></div>확산범위</div>
+      <div class="leg"><div class="leg-dot" style="background:#FFAA00;opacity:.5"></div>외곽</div>
+      <div class="leg"><div class="leg-dot" style="background:#00E676"></div>방어선</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 상태 변수 ──
+var _windDeg = -1;
+var _windName = '';
+var _elapsed = 30;
+var _lastResult = null;
+
+// ── 탭 ──
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(function(t,i){
+    t.classList.toggle('on',(i===0&&id==='input')||(i===1&&id==='result'));
+  });
+  document.querySelectorAll('.tc').forEach(function(c){c.classList.remove('on');});
+  document.getElementById('tc-'+id).classList.add('on');
+}
+
+// ── 풍향 ──
+function setWind(deg, name, el) {
+  _windDeg = deg;
+  _windName = name;
+  document.querySelectorAll('.wdir').forEach(function(e){e.classList.remove('on');});
+  el.classList.add('on');
+  var arrows = {0:'↑',45:'↗',90:'→',135:'↘',180:'↓',225:'↙',270:'←',315:'↖'};
+  document.getElementById('windCompass').textContent = arrows[deg]||'↑';
+}
+
+// ── 시간 ──
+function setTime(min, el) {
+  _elapsed = min;
+  document.querySelectorAll('.tbtn').forEach(function(e){e.classList.remove('on');});
+  el.classList.add('on');
+}
+
+// ── GPS ──
+function useGPS() {
+  if (!navigator.geolocation) { alert('위치 서비스 불가'); return; }
+  navigator.geolocation.getCurrentPosition(function(p){
+    document.getElementById('lat').value = p.coords.latitude.toFixed(5);
+    document.getElementById('lng').value = p.coords.longitude.toFixed(5);
+  }, function(){ alert('위치를 가져올 수 없습니다'); });
+}
+
+// ── 수종 계수 ──
+var SF = {
+  pine:  {ros:1.00,label:'소나무'},
+  rigida:{ros:0.97,label:'리기다소나무'},
+  jatna: {ros:1.00,label:'잣나무'},
+  gmsol: {ros:1.10,label:'곰솔(해송)'},
+  larch: {ros:0.85,label:'일본잎갈나무'},
+  broad: {ros:0.40,label:'활엽수'}
+};
+
+// ── ROS 계산 ──
+function calcROS(ws,sl,rh,sp) {
+  var sf = SF[sp];
+  var base = 0.57;
+  var wf = Math.pow(Math.max(ws,0.1),1.7)*0.72+1;
+  var slf = sl<15?0.8:sl<30?1.5:2.8;
+  var hf = Math.max(0.3,1.0-(rh-30)*0.018);
+  return Math.max(0.1,base*wf*slf*hf*sf.ros);
+}
+
+// ── 위경도 <-> 미터 변환 ──
+function mToLat(m){ return m/111000; }
+function mToLng(m,lat){ return m/(111000*Math.cos(lat*Math.PI/180)); }
+
+// ── 방위각으로 좌표 오프셋 ──
+function offset(lat,lng,distM,bearDeg){
+  var br = bearDeg*Math.PI/180;
+  return [lat+mToLat(distM*Math.cos(br)), lng+mToLng(distM*Math.sin(br),lat)];
+}
+
+// ── 타원 좌표 배열 생성 ──
+function ellipse(lat,lng,headM,flankM,backM,windDeg,n){
+  n = n||80;
+  var pts=[], rd=windDeg*Math.PI/180;
+  for(var i=0;i<=n;i++){
+    var t=(i/n)*2*Math.PI;
+    var xl=Math.sin(t)*flankM;
+    var yl=Math.cos(t)>0?Math.cos(t)*headM:Math.cos(t)*backM;
+    var xr=xl*Math.cos(rd)+yl*Math.sin(rd);
+    var yr=-xl*Math.sin(rd)+yl*Math.cos(rd);
+    pts.push([lat+mToLat(yr), lng+mToLng(xr,lat)]);
+  }
+  return pts;
+}
+
+// ── OSM 타일 -> iframe 지도 ──
+function showMap(lat,lng,zoomLevel){
+  var z = zoomLevel||14;
+  // OpenStreetMap 임베드 URL
+  var url = 'https://www.openstreetmap.org/export/embed.html?bbox='
+    +(lng-0.05)+','+(lat-0.04)+','+(lng+0.05)+','+(lat+0.04)
+    +'&layer=mapnik&marker='+lat+','+lng;
+  document.getElementById('mapIframe').src = url;
+  document.getElementById('mapHint').textContent = '지도 로드 중... 확산 범위는 위 오버레이로 표시';
+}
+
+// ── 캔버스 오버레이 그리기 ──
+function drawOverlay(lat,lng,headM,flankM,backM,windDeg){
+  var wrap = document.getElementById('mapWrap');
+  var canvas = document.getElementById('overlay');
+  var W = wrap.clientWidth, H = wrap.clientHeight;
+  canvas.width = W; canvas.height = H;
+  var ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  // 지도 bbox (iframe과 동일)
+  var bbox = {
+    minLng: lng-0.05, maxLng: lng+0.05,
+    minLat: lat-0.04, maxLat: lat+0.04
+  };
+  var lngRange = bbox.maxLng-bbox.minLng;
+  var latRange = bbox.maxLat-bbox.minLat;
+
+  function toXY(ptLat,ptLng){
+    return [
+      ((ptLng-bbox.minLng)/lngRange)*W,
+      ((bbox.maxLat-ptLat)/latRange)*H
+    ];
+  }
+
+  var cx = toXY(lat,lng);
+
+  // 배경 어둡게
+  ctx.fillStyle='rgba(0,0,0,0.18)';
+  ctx.fillRect(0,0,W,H);
+
+  // 타원 레이어들
+  var layers=[
+    {r:0.15,c:'#FFE066',fo:0.07,so:0.10,minMin:360},
+    {r:0.30,c:'#FFAA00',fo:0.10,so:0.15,minMin:180},
+    {r:0.50,c:'#FF8800',fo:0.13,so:0.20,minMin:120},
+    {r:0.70,c:'#FF5500',fo:0.18,so:0.28,minMin:60},
+    {r:1.00,c:'#FF3300',fo:0.25,so:0.40,minMin:0}
+  ];
+
+  var rd=(windDeg-90)*Math.PI/180; // canvas 회전 (0°=동쪽이 기준이므로 -90)
+
+  layers.forEach(function(l){
+    if(_elapsed < l.minMin) return;
+    var hP=headM*l.r, fP=flankM*l.r, bP=backM*l.r;
+    var scale = Math.min(W,H)*0.38/headM; // headM이 화면 38% 차지
+    ctx.save();
+    ctx.translate(cx[0],cx[1]);
+    ctx.rotate(rd);
+    ctx.shadowColor=l.c; ctx.shadowBlur=l.r===1?18:0;
+    // 앞쪽 반타원
+    ctx.beginPath();
+    ctx.ellipse(0,0,fP*scale,hP*scale,0,Math.PI,2*Math.PI);
+    ctx.fillStyle=l.c;
+    ctx.globalAlpha=l.fo;
+    ctx.fill();
+    ctx.globalAlpha=l.so;
+    ctx.strokeStyle=l.c; ctx.lineWidth=l.r===1?2:0.5;
+    ctx.stroke();
+    // 뒤쪽 반타원
+    ctx.beginPath();
+    ctx.ellipse(0,0,fP*scale,bP*scale,0,0,Math.PI);
+    ctx.globalAlpha=l.fo;
+    ctx.fill();
+    ctx.globalAlpha=l.so;
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // 불머리 방향 점선
+  var scale=Math.min(W,H)*0.38/headM;
+  var rdMain=(windDeg-90)*Math.PI/180;
+  var endX=cx[0]+Math.cos(rdMain+(Math.PI/2))*headM*scale*1.5;
+  var endY=cx[1]+Math.sin(rdMain+(Math.PI/2))*headM*scale*1.5;
+  ctx.save();
+  ctx.globalAlpha=0.35;
+  ctx.strokeStyle='#FFE066'; ctx.lineWidth=1.5;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(cx[0],cx[1]); ctx.lineTo(endX,endY); ctx.stroke();
+  ctx.restore();
+
+  // 방어선
+  var defDist = headM*1.22*scale;
+  var defX=cx[0]+Math.cos(rdMain+(Math.PI/2))*defDist;
+  var defY=cx[1]+Math.sin(rdMain+(Math.PI/2))*defDist;
+  var perpLen=flankM*scale*1.4;
+  var perpAng=rdMain; // 수직
+  ctx.save();
+  ctx.globalAlpha=0.85;
+  ctx.strokeStyle='#00E676'; ctx.lineWidth=2.5;
+  ctx.setLineDash([7,5]);
+  ctx.shadowColor='#00E676'; ctx.shadowBlur=10;
+  ctx.beginPath();
+  ctx.moveTo(defX-Math.cos(perpAng+(Math.PI/2))*perpLen, defY-Math.sin(perpAng+(Math.PI/2))*perpLen);
+  ctx.lineTo(defX+Math.cos(perpAng+(Math.PI/2))*perpLen, defY+Math.sin(perpAng+(Math.PI/2))*perpLen);
+  ctx.stroke();
+  ctx.restore();
+
+  // 방어선 라벨
+  ctx.save();
+  ctx.globalAlpha=0.9;
+  ctx.fillStyle='#00E676';
+  ctx.font='bold 11px Noto Sans KR, sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('▶ 방어선 권고',defX,defY-12);
+  ctx.restore();
+
+  // 불머리 거리 라벨
+  ctx.save();
+  ctx.globalAlpha=0.9;
+  ctx.fillStyle='#FFDD88';
+  ctx.font='bold 11px JetBrains Mono, monospace';
+  ctx.textAlign='center';
+  ctx.fillText(headM.toLocaleString()+'m',endX,endY-6);
+  ctx.restore();
+
+  // 발화점
+  ctx.save();
+  ctx.globalAlpha=1;
+  ctx.shadowColor='#FF0000'; ctx.shadowBlur=20;
+  var grd=ctx.createRadialGradient(cx[0],cx[1],0,cx[0],cx[1],12);
+  grd.addColorStop(0,'rgba(255,255,255,0.9)');
+  grd.addColorStop(0.4,'rgba(255,80,0,0.8)');
+  grd.addColorStop(1,'rgba(255,0,0,0)');
+  ctx.fillStyle=grd;
+  ctx.beginPath(); ctx.arc(cx[0],cx[1],12,0,Math.PI*2); ctx.fill();
+  ctx.font='14px sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('🔥',cx[0],cx[1]);
+  ctx.restore();
+}
+
+// ── 메인 실행 ──
+function run(){
+  var lat=parseFloat(document.getElementById('lat').value);
+  var lng=parseFloat(document.getElementById('lng').value);
+  if(isNaN(lat)||isNaN(lng)){alert('발화 위치(위도/경도)를 입력해 주세요.');return;}
+  if(_windDeg<0){alert('풍향을 선택해 주세요.');return;}
+
+  var ws=parseFloat(document.getElementById('ws').value);
+  var sl=parseFloat(document.getElementById('sl').value);
+  var rh=parseFloat(document.getElementById('rh').value);
+  var sp=document.getElementById('sp').value;
+
+  var ros=calcROS(ws,sl,rh,sp);
+  var headM=Math.round(ros*_elapsed);
+  var flankM=Math.round(headM*0.35);
+  var backM=Math.round(headM*0.08);
+  var area=(Math.PI*(headM/2)*flankM/10000).toFixed(1);
+
+  _lastResult={lat:lat,lng:lng,headM:headM,flankM:flankM,backM:backM,windDeg:_windDeg};
+
+  // 지도 표시
+  showMap(lat,lng);
+
+  // 오버레이 (iframe 로드 후 그리기)
+  setTimeout(function(){
+    drawOverlay(lat,lng,headM,flankM,backM,_windDeg);
+  },500);
+
+  // 결과
+  document.getElementById('rHead').textContent=headM.toLocaleString();
+  document.getElementById('rArea').textContent=area;
+  document.getElementById('rSpeed').textContent=ros.toFixed(1);
+
+  var dpct,dlabel,dcolor;
+  if(ros<2){dpct=15;dlabel='낮음';dcolor='#00E676';}
+  else if(ros<5){dpct=35;dlabel='보통';dcolor='#FFD600';}
+  else if(ros<12){dpct=62;dlabel='높음';dcolor='#FF6600';}
+  else if(ros<20){dpct=82;dlabel='매우 높음';dcolor='#FF1744';}
+  else{dpct=96;dlabel='극히 위험';dcolor='#FF1744';}
+
+  document.getElementById('dmarker').style.left=dpct+'%';
+  var dl=document.getElementById('dlevel');
+  dl.textContent=dlabel; dl.style.color=dcolor;
+
+  var ab=document.getElementById('alertBox');
+  var sfl=SF[sp].label;
+  ab.className='alert on';
+  if(ros>=12){
+    ab.className+=' danger';
+    ab.innerHTML='⚠️ <strong>극도 위험:</strong> '+sfl+' '+sl+'°경사, '+ws+'m/s — '+_elapsed+'분 내 불머리 <strong>'+headM.toLocaleString()+'m</strong> 확산. 방어선 즉시 선점. 수관화 전환 가능성 높음.';
+  }else if(ros>=5){
+    ab.className+=' warn';
+    ab.innerHTML='⚡ <strong>주의:</strong> '+sfl+' 기준 '+ros.toFixed(1)+'m/분. '+_elapsed+'분 내 약 '+area+'ha 피해 예상. 측면 우선 진압 후 능선·임도 방어선 선점.';
+  }else{
+    ab.className+=' ok';
+    ab.innerHTML='✓ <strong>상대적 안전:</strong> 확산속도 '+ros.toFixed(1)+'m/분. 단 풍향 급변 시 즉시 재평가 필요.';
+  }
+
+  // 방어선 좌표
+  var defPt=offset(lat,lng,headM*1.22,_windDeg);
+  var perpL=offset(defPt[0],defPt[1],flankM*1.4,_windDeg-90);
+  var perpR=offset(defPt[0],defPt[1],flankM*1.4,_windDeg+90);
+  var cb=document.getElementById('coordBox');
+  cb.className='coord-box on';
+  document.getElementById('coordText').innerHTML=
+    '<span style="color:#888">방어선 중심</span>  '+defPt[0].toFixed(5)+', '+defPt[1].toFixed(5)+'<br>'+
+    '<span style="color:#888">방어선 좌단</span>  '+perpL[0].toFixed(5)+', '+perpL[1].toFixed(5)+'<br>'+
+    '<span style="color:#888">방어선 우단</span>  '+perpR[0].toFixed(5)+', '+perpR[1].toFixed(5);
+  _lastResult.defPt=defPt; _lastResult.perpL=perpL; _lastResult.perpR=perpR;
+
+  switchTab('result');
+  document.getElementById('mapHint').textContent='🔥=발화점 | 주황=확산범위 | 🟢=방어선권고';
+}
+
+// ── 좌표 복사 ──
+function copyCoords(){
+  var t=document.getElementById('coordText').textContent;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(t).then(function(){alert('복사됨!');});
+  }else{
+    var ta=document.createElement('textarea');
+    ta.value=t; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    alert('복사됨!');
+  }
+}
+
+// 리사이즈 시 재그리기
+window.addEventListener('resize',function(){
+  if(_lastResult){
+    drawOverlay(_lastResult.lat,_lastResult.lng,_lastResult.headM,_lastResult.flankM,_lastResult.backM,_lastResult.windDeg);
+  }
+});
+</script>
+</body>
+</html>
